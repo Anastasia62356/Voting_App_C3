@@ -84,3 +84,4 @@ with st.container(border=True):
             st.success(f"✅ 議題「{title}」を作成しました！")
             st.balloons()
 
+
