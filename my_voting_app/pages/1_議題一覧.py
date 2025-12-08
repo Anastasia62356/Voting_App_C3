@@ -116,7 +116,7 @@ for index, topic in topics_df.iterrows():
 
     with st.container(border=True):
         st.subheader(title)
-        st.caption(f"作成者：{author}｜締切：{deadline_str}")
+        st.caption(f"作成者：{author}｜締め切り：{deadline_str}")
 
         col1, col2 = st.columns([1, 2])
 
@@ -145,6 +145,7 @@ for index, topic in topics_df.iterrows():
                 counts = topic_votes["option"].value_counts()
                 for opt in options:
                     st.write(f"{opt}：{counts.get(opt, 0)} 票")
+
 
 
 
