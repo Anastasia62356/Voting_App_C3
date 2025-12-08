@@ -102,6 +102,11 @@ if input_date:
 # ---------------------------------------------------------
 # 8. 議題ループ表示
 # ---------------------------------------------------------
+# 投票ボタンの状態管理（議題ごと）
+if "vote_disabled" not in st.session_state:
+    st.session_state.vote_disabled = {}
+
+    
 for index, topic in topics_df.iterrows():
     title = topic["title"]
     author = topic.get("author", "不明")
@@ -121,18 +126,33 @@ for index, topic in topics_df.iterrows():
         col1, col2 = st.columns([1, 2])
 
         # 投票UI
-        with col1:
-            selected_option = st.radio(
-                "投票してください",
-                options,
-                key=f"radio_{index}"
-            )
-            if st.button("👍 投票する", key=f"vote_{index}"):
-                db_handler.add_vote_to_sheet(title, selected_option)
-                st.success("投票しました！")
-                st.balloons()
-                time.sleep(3)
-                st.rerun()
+       with col1:
+    selected_option = st.radio(
+        "投票してください",
+        options,
+        key=f"radio_{index}"
+    )
+
+    # disabled 状態を管理
+    if index not in st.session_state.vote_disabled:
+        st.session_state.vote_disabled[index] = False
+
+    if st.button(
+        "👍 投票する",
+        key=f"vote_{index}",
+        disabled=st.session_state.vote_disabled[index]
+    ):
+        db_handler.add_vote_to_sheet(title, selected_option)
+        st.success("投票しました！")
+        st.balloons()
+
+        # ✅ この議題のボタンだけグレーアウト
+        st.session_state.vote_disabled[index] = True
+
+        time.sleep(1.5)
+        st.rerun()
+
+                
 
         # 投票数集計表示
         with col2:
@@ -145,6 +165,7 @@ for index, topic in topics_df.iterrows():
                 counts = topic_votes["option"].value_counts()
                 for opt in options:
                     st.write(f"{opt}：{counts.get(opt, 0)} 票")
+
 
 
 
