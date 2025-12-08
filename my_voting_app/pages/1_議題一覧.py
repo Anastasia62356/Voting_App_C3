@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import datetime
+import time
 import sys
 import os
 
@@ -123,6 +124,7 @@ for index, topic in topics_df.iterrows():
                 counts = topic_votes["option"].value_counts()
                 for opt in options:
                     st.write(f"{opt}：{counts.get(opt, 0)} 票")
+
 
 
 
