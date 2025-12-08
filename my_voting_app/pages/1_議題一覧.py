@@ -127,7 +127,7 @@ for index, topic in topics_df.iterrows():
 
         # 投票UI
        with col1:
-    selected_option = st.radio(
+        selected_option = st.radio(
         "投票してください",
         options,
         key=f"radio_{index}"
@@ -165,6 +165,7 @@ for index, topic in topics_df.iterrows():
                 counts = topic_votes["option"].value_counts()
                 for opt in options:
                     st.write(f"{opt}：{counts.get(opt, 0)} 票")
+
 
 
 
