@@ -24,14 +24,7 @@ topics_df = db_handler.get_topics_from_sheet()
 votes_df = db_handler.get_votes_from_sheet()
 
 # ---------------------------------------------------------
-# デバッグ表示（問題解消後は消してOK）
-# ---------------------------------------------------------
-if not topics_df.empty:
-    st.write("🔍 デバッグ：読み込んだデータ")
-    st.dataframe(topics_df.head())
-
-# ---------------------------------------------------------
-# 日付変換処理
+# 日付変換
 # ---------------------------------------------------------
 if not topics_df.empty and "deadline" in topics_df.columns:
     topics_df["deadline_parsed"] = pd.to_datetime(
@@ -45,7 +38,7 @@ if not topics_df.empty and "deadline" in topics_df.columns:
 today = pd.to_datetime("now").date()
 
 # ---------------------------------------------------------
-# 締切済みデータ抽出
+# 締切済み議題のみ抽出
 # ---------------------------------------------------------
 if not topics_df.empty and "deadline_date" in topics_df.columns:
     finished_topics = topics_df[
@@ -56,7 +49,7 @@ else:
     finished_topics = pd.DataFrame()
 
 # ---------------------------------------------------------
-# 議題プルダウン
+# 議題ドロップダウン
 # ---------------------------------------------------------
 if finished_topics.empty:
     topic_titles = ["（締切済みの議題がありません）"]
@@ -66,7 +59,7 @@ else:
 selected_topic = st.selectbox("議題を選択してください", topic_titles)
 
 # ---------------------------------------------------------
-# 表示部分
+# 表示処理
 # ---------------------------------------------------------
 if finished_topics.empty or selected_topic == "（締切済みの議題がありません）":
     st.info("締切済みの議題はまだありません。")
@@ -75,9 +68,10 @@ else:
     topic_row = finished_topics[finished_topics["title"] == selected_topic].iloc[0]
     options = topic_row["options"].split("/")
 
-    topic_votes = votes_df[
-        votes_df["topic_title"] == selected_topic
-    ] if not votes_df.empty else pd.DataFrame()
+    topic_votes = (
+        votes_df[votes_df["topic_title"] == selected_topic]
+        if not votes_df.empty else pd.DataFrame()
+    )
 
     st.subheader(f"📝 議題：{selected_topic}")
 
@@ -96,11 +90,11 @@ else:
 
     result_df = pd.DataFrame(result)
 
-    # 表のみ表示（インデックス非表示）
+    # 表表示
     st.table(result_df.reset_index(drop=True))
 
 # ---------------------------------------------------------
-# 手動更新
+# 更新ボタン
 # ---------------------------------------------------------
 st.divider()
 if st.button("🔄 更新"):
