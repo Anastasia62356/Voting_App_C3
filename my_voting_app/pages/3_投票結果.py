@@ -82,11 +82,13 @@ else:
     result_df = pd.DataFrame(result)
 
     # 表表示
-    st.table(result_df.reset_index(drop=True))
+    st.dataframe(result_df, hide_index=True)
+
 
 
 # 更新ボタン
 st.divider()
 if st.button("🔄 更新"):
     st.rerun()
+
 
