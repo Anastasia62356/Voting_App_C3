@@ -103,7 +103,10 @@ if input_date:
 # ---------------------------------------------------------
 # 8. 議題ループ表示
 # ---------------------------------------------------------
-    
+vote_key = f"vote_{index}"
+if vote_key not in st.session_state:
+    st.session_state[vote_key] = False
+
 for index, topic in topics_df.iterrows():
     title = topic["title"]
     author = topic.get("author", "不明")
@@ -129,7 +132,7 @@ for index, topic in topics_df.iterrows():
                 options,
                 key=f"radio_{index}"
             )
-            if st.button("👍 投票する", key=f"vote_{index}"):
+            if st.button("👍 投票する", key=f"vote_{index}",disabled=st.session_state[vote_key]):
                 db_handler.add_vote_to_sheet(title, selected_option)
                 st.success("投票しました！")
                 st.balloons()
@@ -148,6 +151,7 @@ for index, topic in topics_df.iterrows():
                 counts = topic_votes["option"].value_counts()
                 for opt in options:
                     st.write(f"{opt}：{counts.get(opt, 0)} 票")
+
 
 
 
