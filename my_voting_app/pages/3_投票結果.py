@@ -16,14 +16,13 @@ st.title("📊 投票結果一覧")
 # -----------------------------
 # 現在時刻（日本時間）
 # -----------------------------
-JST = timezone(timedelta(hours=9))
-now = datetime.now(JST)
+now = pd.to_datetime("now")
 
 # -----------------------------
 # データ取得
 # -----------------------------
-topics_df = db_handler.get_topics_from_sheet()
-votes_df = db_handler.get_votes_from_sheet()
+topics_df["deadline"] = pd.to_datetime(topics_df["deadline"], errors="coerce")
+finished_topics = topics_df[topics_df["deadline"] < now]
 
 # -----------------------------
 # 締め切り済み議題だけ抽出
@@ -79,3 +78,4 @@ else:
 st.divider()
 if st.button("🔄 更新"):
     st.rerun()
+
