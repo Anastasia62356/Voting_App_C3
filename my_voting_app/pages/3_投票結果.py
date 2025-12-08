@@ -10,7 +10,9 @@ import time
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/..'))
 import db_handler
 
+# ---------------------------------------------------------
 # ページ設定
+# ---------------------------------------------------------
 st.set_page_config(page_title="投票結果", page_icon="📊")
 
 st.title("📊 投票結果一覧")
@@ -28,16 +30,26 @@ st.rerun()
 topics_df = db_handler.get_topics_from_sheet()
 votes_df = db_handler.get_votes_from_sheet()
 
+# ---------------------------------------------------------
+# 議題リスト作成（空でもOKにする）
+# ---------------------------------------------------------
 if topics_df.empty:
-    st.info("まだ議題がありません。")
-    st.stop()
+    topic_titles = ["（議題がまだありません）"]
+else:
+    topic_titles = topics_df["title"].tolist()
 
-# 議題選択
-topic_titles = topics_df["title"].tolist()
+# ---------------------------------------------------------
+# 選択ボックスは常に表示
+# ---------------------------------------------------------
 selected_topic = st.selectbox("議題を選択してください", topic_titles)
 
-# 集計
-if selected_topic:
+# ---------------------------------------------------------
+# 中身の表示
+# ---------------------------------------------------------
+if topics_df.empty or selected_topic == "（議題がまだありません）":
+    st.info("議題が追加されると、ここに結果が表示されます。")
+
+else:
     topic_row = topics_df[topics_df["title"] == selected_topic].iloc[0]
     options = topic_row["options"].split("/")
 
