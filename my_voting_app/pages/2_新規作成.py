@@ -3,9 +3,8 @@ import datetime
 import sys
 import os
 
-# db_handler.py を読み込めるようにパスを通す設定
+# パス設定
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/..'))
-
 import db_handler 
 
 # ---------------------------------------------------------
@@ -13,10 +12,29 @@ import db_handler
 # ---------------------------------------------------------
 st.set_page_config(page_title="新規議題の作成", page_icon="✨")
 
-st.title("✨ 新しい議題を作成する")
-st.markdown("チームのみんなに聞いてみたいことを投稿しましょう！")
+# ---------------------------------------------------------
+# 状態管理（完了画面かどうかのフラグ）
+# ---------------------------------------------------------
+if "creation_completed" not in st.session_state:
+    st.session_state.creation_completed = False
 
-# 選択肢の数を管理
+# ---------------------------------------------------------
+# 関数：フォームをリセットして再作成する
+# ---------------------------------------------------------
+def reset_form():
+    # 完了フラグを下ろす
+    st.session_state.creation_completed = False
+    # 選択肢の数をリセット
+    st.session_state.num_options = 2
+    # 入力内容（session_stateに入っている値）を全部消す
+    keys_to_clear = ["input_title", "input_author"] + [k for k in st.session_state.keys() if k.startswith("option_")]
+    for k in keys_to_clear:
+        if k in st.session_state:
+            del st.session_state[k]
+
+# ---------------------------------------------------------
+# 関数：選択肢の増減
+# ---------------------------------------------------------
 if "num_options" not in st.session_state:
     st.session_state.num_options = 2
 
@@ -27,82 +45,96 @@ def remove_option():
     if st.session_state.num_options > 2:
         st.session_state.num_options -= 1
 
-# ---------------------------------------------------------
-# メイン画面
-# ---------------------------------------------------------
-with st.container(border=True):
-    st.subheader("📝 議題の内容")
-    title = st.text_input("議題のタイトル", placeholder="例：来週のランチどこ行く？")
-    
-    # 作成者名
-    author = st.text_input("作成者名", placeholder="例：山田 太郎")
+# =========================================================
+# メイン処理：画面の切り替え
+# =========================================================
 
-    # ▼▼▼ 修正：3つの列に分けることで、文字サイズと高さを完璧に揃える ▼▼▼
-    st.markdown("##### 📅 締め切り設定")
+# 【パターンA】作成完了画面（作成成功後にここが表示される）
+if st.session_state.creation_completed:
     
-    # [2:1:1] の比率で、左から「日付」「時」「分」のスペースを作る
-    col_date, col_hour, col_min = st.columns([2, 1, 1])
+    st.title("✅ 作成完了！")
+    st.success("新しい議題を作成しました。")
+    st.balloons() # ここで風船を飛ばす
     
-    with col_date:
-        # ラベルのフォントサイズはStreamlit標準で統一されます
-        input_date = st.date_input("締め切り日", min_value=datetime.date.today())
+    st.markdown("---")
     
-    with col_hour:
-        # 「締め切り時間」という言葉を入れたい場合は、ここのラベルに含めるときれいです
-        input_hour = st.number_input("時", min_value=0, max_value=23, value=12, step=1)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # ホームに戻るボタン
+        if st.button("🏠 ホームに戻る", use_container_width=True):
+            # 完了状態をリセットしてからホームへ
+            st.session_state.creation_completed = False
+            st.switch_page("Home.py") 
+    
+    with col2:
+        # 続けて作成するボタン
+        if st.button("✨ 続けて新しい議題を作る", type="primary", use_container_width=True):
+            reset_form() # 入力を空にしてリセット
+            st.rerun()   # 画面を再読み込みして入力画面に戻る
+
+# 【パターンB】入力画面（通常はこちらが表示される）
+else:
+    st.title("✨ 新しい議題を作成する")
+    st.markdown("チームのみんなに聞いてみたいことを投稿しましょう！")
+    
+    with st.container(border=True):
+        st.subheader("📝 議題の内容")
+        # keyを設定することで、リセット時に値を消せるようにします
+        title = st.text_input("議題のタイトル", placeholder="例：来週のランチどこ行く？", key="input_title")
+        author = st.text_input("作成者名", placeholder="例：山田 太郎", key="input_author")
+
+        # --- 締め切り設定 ---
+        st.markdown("##### 📅 締め切り設定")
+        col_date, col_hour, col_min = st.columns([2, 1, 1])
         
-    with col_min:
-        input_minute = st.number_input("分", min_value=0, max_value=59, value=0, step=1)
+        with col_date:
+            input_date = st.date_input("締め切り日", min_value=datetime.date.today())
+        with col_hour:
+            input_hour = st.number_input("時", min_value=0, max_value=23, value=12, step=1)
+        with col_min:
+            input_minute = st.number_input("分", min_value=0, max_value=59, value=0, step=1)
 
-    # 日付と時間を合体させる
-    deadline_dt = datetime.datetime.combine(
-        input_date, 
-        datetime.time(input_hour, input_minute)
-    )
-    # ▲▲▲ 修正ポイントここまで ▲▲▲
-    
-    st.markdown("---")
-    
-    st.subheader("🔢 選択肢")
-    options_inputs = []
-    for i in range(st.session_state.num_options):
-        val = st.text_input(f"選択肢 {i+1}", key=f"option_{i}", placeholder=f"選択肢 {i+1} を入力")
-        options_inputs.append(val)
+        deadline_dt = datetime.datetime.combine(input_date, datetime.time(input_hour, input_minute))
+        
+        st.markdown("---")
+        
+        # --- 選択肢 ---
+        st.subheader("🔢 選択肢")
+        options_inputs = []
+        for i in range(st.session_state.num_options):
+            val = st.text_input(f"選択肢 {i+1}", key=f"option_{i}", placeholder=f"選択肢 {i+1} を入力")
+            options_inputs.append(val)
 
-    btn_col1, btn_col2, _ = st.columns([1, 1, 3])
-    with btn_col1:
-        st.button("＋ 選択肢を追加", on_click=add_option)
-    with btn_col2:
-        st.button("－ 1行削除", on_click=remove_option, disabled=(st.session_state.num_options <= 2))
+        btn_col1, btn_col2, _ = st.columns([1, 1, 3])
+        with btn_col1:
+            st.button("＋ 選択肢を追加", on_click=add_option)
+        with btn_col2:
+            st.button("－ 1行削除", on_click=remove_option, disabled=(st.session_state.num_options <= 2))
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # 送信ボタン
-    if st.button("この内容で議題を作成する", type="primary", use_container_width=True):
-        # 空欄を除去
-        valid_options = [opt.strip() for opt in options_inputs if opt.strip()]
+        # --- 作成ボタン ---
+        if st.button("この内容で議題を作成する", type="primary", use_container_width=True):
+            valid_options = [opt.strip() for opt in options_inputs if opt.strip()]
 
-        if not title:
-            st.error("⚠️ タイトルを入力してください！")
-        elif len(valid_options) < 2:
-            st.error("⚠️ 選択肢は少なくとも2つ以上入力してください。")
-        else:
-            options_str = "/".join(valid_options)
-            
-            try:
-                # 日時を見やすい文字（例: 2025-12-08 12:30）に変換
-                formatted_deadline = deadline_dt.strftime("%Y-%m-%d %H:%M")
-
-                # db_handlerを使ってスプレッドシートに書き込む
-                db_handler.add_topic_to_sheet(title, author, options_str, formatted_deadline)
+            if not title:
+                st.error("⚠️ タイトルを入力してください！")
+            elif len(valid_options) < 2:
+                st.error("⚠️ 選択肢は少なくとも2つ以上入力してください。")
+            else:
+                options_str = "/".join(valid_options)
                 
-                st.success(f"✅ 議題「{title}」を作成しました！")
-                st.balloons()
-            except Exception as e:
-                # もし設定ミスなどで保存できなかったらエラーを表示
-                st.error(f"スプレッドシートへの保存に失敗しました...: {e}")
-            
-            # 元のコードにあった「最後の行の st.balloons()」は削除しました（重複していたため）
+                try:
+                    formatted_deadline = deadline_dt.strftime("%Y-%m-%d %H:%M")
+                    db_handler.add_topic_to_sheet(title, author, options_str, formatted_deadline)
+                    
+                    # ★成功したら完了フラグを立てて、画面を再読み込みする
+                    st.session_state.creation_completed = True
+                    st.rerun() 
+                    
+                except Exception as e:
+                    st.error(f"スプレッドシートへの保存に失敗しました...: {e}")
 
 
 
