@@ -11,8 +11,7 @@ import db_handler
 # ページ設定
 st.set_page_config(page_title="投票結果", page_icon="📊")
 
-st.title("📊 投票結果一覧")
-st.caption("締切済みの議題のみ表示します")
+
 
 set_background("background.png")  # 背景画像の設定
 
@@ -20,6 +19,8 @@ set_background("background.png")  # 背景画像の設定
 topics_df = db_handler.get_topics_from_sheet()
 votes_df = db_handler.get_votes_from_sheet()
 
+st.title("📊 投票結果一覧")
+st.caption("締切済みの議題のみ表示します")
 
 # 日付変換
 if not topics_df.empty and "deadline" in topics_df.columns:
@@ -91,6 +92,7 @@ else:
 st.divider()
 if st.button("🔄 更新"):
     st.rerun()
+
 
 
 
