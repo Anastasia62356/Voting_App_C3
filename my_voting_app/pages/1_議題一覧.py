@@ -29,6 +29,13 @@ st.set_page_config(
 )
 
 set_background("background.png")  # 背景画像の設定
+
+# ▼▼▼ 門番コード ▼▼▼
+if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
+    st.warning("⚠️ このページを見るにはログインが必要です。")
+    st.page_link("Home.py", label="ログイン画面へ戻る", icon="🏠")
+    st.stop() # ★ここでプログラムを強制停止！これより下のコードは実行されません
+    
 # ---------------------------------------------------------
 # 4. ヘッダー
 # ---------------------------------------------------------
@@ -158,6 +165,9 @@ for index, topic in topics_df.iterrows():
                 counts = topic_votes["option"].value_counts()
                 for opt in options:
                     st.write(f"{opt}：{counts.get(opt, 0)} 票")
+
+
+
 
 
 
