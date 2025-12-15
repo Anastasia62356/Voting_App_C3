@@ -35,7 +35,6 @@ if "num_options" not in st.session_state:
 def reset_form():
     st.session_state.creation_completed = False
     st.session_state.num_options = 2
-    # 入力内容をクリア
     keys_to_clear = ["input_title", "input_author"] + [k for k in st.session_state.keys() if k.startswith("option_")]
     for k in keys_to_clear:
         if k in st.session_state: del st.session_state[k]
@@ -90,7 +89,7 @@ else:
         with col_min:
             input_minute = st.number_input("分", min_value=0, max_value=59, value=0, step=1)
         
-        # 日付と時間を合体
+        # 入力された日付と時間を合体（まだタイムゾーンなし）
         deadline_dt = datetime.datetime.combine(input_date, datetime.time(input_hour, input_minute))
         
         st.markdown("---")
@@ -128,10 +127,19 @@ else:
                 st.error("⚠️ タイトルを入力してください！")
                 is_valid = False
             
-            # 2. 日付チェック（過去の日付禁止）
-            # 現在時刻を取得
-            now = datetime.datetime.now()
-            if deadline_dt <= now:
+            # 2. 日付チェック（▼▼▼ ここを修正：日本時間で判定 ▼▼▼）
+            # 日本時間（JST）の定義
+            t_delta = datetime.timedelta(hours=9)
+            JST = datetime.timezone(t_delta, 'JST')
+            
+            # 現在の日本時間を取得
+            now_jst = datetime.datetime.now(JST)
+            
+            # 入力された時間を日本時間扱いにする（比較のために変換）
+            deadline_aware = deadline_dt.replace(tzinfo=JST)
+            
+            # 比較実行
+            if deadline_aware <= now_jst:
                 st.error("⚠️ 締め切り時間が過去になっています。現在より未来の日時を設定してください。")
                 is_valid = False
 
@@ -150,17 +158,15 @@ else:
             if is_valid:
                 try:
                     formatted_deadline = deadline_dt.strftime("%Y-%m-%d %H:%M")
-                    
-                    # ログイン中のメールアドレスを取得（権限管理用）
                     current_email = st.session_state.logged_in_user
                     
-                    # db_handlerにデータを渡す
                     db_handler.add_topic_to_sheet(title, author, final_options_str, formatted_deadline, current_email)
                     
                     st.session_state.creation_completed = True
                     st.rerun() 
                 except Exception as e:
                     st.error(f"保存に失敗しました...: {e}")
+
 
 
 
