@@ -55,7 +55,8 @@ today = pd.to_datetime("now").date()
 if not topics_df.empty and "deadline_date" in topics_df.columns:
     finished_topics = topics_df[
         topics_df["deadline_date"].notna() &
-        (topics_df["deadline_date"] < today) 
+        (topics_df["deadline_date"] < today) |
+        (topics_df["status"] == "closed")
     ].copy()
 else:
     finished_topics = pd.DataFrame()
@@ -162,6 +163,7 @@ else:
 st.divider()
 if st.button("🔄 更新"):
     st.rerun()
+
 
 
 
