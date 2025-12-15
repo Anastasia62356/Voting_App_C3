@@ -3,7 +3,7 @@ import os
 from PIL import Image
 import base64
 import google_auth_oauthlib.flow
-import json # ▼追加：Cloudの設定を読み込むために必要
+import json 
 from background import set_background
 
 # ---------------------------------------------------------
@@ -18,8 +18,7 @@ PAGEICON_PATH = os.path.join(BASE_DIR, "images/icon_01.png")
 CLIENT_SECRETS_FILE = os.path.join(BASE_DIR, "client_secret.json")
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email']
 
-# ▼▼▼ 修正：CloudとローカルでURLを自動切り替え ▼▼▼
-# Secretsに "auth" 設定があればCloud用のURLを使う
+# CloudとローカルでURLを自動切り替え
 if "auth" in st.secrets and "redirect_uri" in st.secrets["auth"]:
     REDIRECT_URI = st.secrets["auth"]["redirect_uri"]
 else:
@@ -93,11 +92,34 @@ def google_login():
 
     # --- 認証フローの実行 ---
     if 'code' not in st.query_params:
-        # ログインボタン表示
+        # ログインURLを作成
         auth_url, _ = flow.authorization_url(prompt='consent')
+        
         st.title("🔒 ログイン")
         st.write("アプリを利用するにはGoogleアカウントでログインしてください。")
-        st.link_button("Googleでログイン", auth_url, type="primary")
+        
+        # ▼▼▼ 修正：st.link_buttonをやめて、同じタブで開くHTMLボタンに変更 ▼▼▼
+        button_html = f'''
+        <a href="{auth_url}" target="_self" style="text-decoration: none;">
+            <button style="
+                background-color: #FF4B4B;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                width: 100%;
+                margin-top: 10px;
+            ">
+                Googleでログイン
+            </button>
+        </a>
+        '''
+        st.markdown(button_html, unsafe_allow_html=True)
+        # ▲▲▲ 修正ここまで ▲▲▲
+        
         return None
     else:
         # Googleから戻ってきた後の処理
