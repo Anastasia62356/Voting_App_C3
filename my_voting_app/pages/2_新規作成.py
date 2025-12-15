@@ -89,18 +89,19 @@ else:
             input_hour = st.number_input("時", min_value=0, max_value=23, value=12, step=1)
         with col_min:
             input_minute = st.number_input("分", min_value=0, max_value=59, value=0, step=1)
+        
+        # 日付と時間を合体
         deadline_dt = datetime.datetime.combine(input_date, datetime.time(input_hour, input_minute))
         
         st.markdown("---")
 
-        # ▼▼▼ 追加機能：回答形式の選択 ▼▼▼
+        # --- 回答形式の選択 ---
         st.subheader("🗳️ 回答の形式")
         vote_type = st.radio("形式を選んでください", ["選択肢から選ぶ", "自由記述（テキスト入力）"], horizontal=True)
         
         options_inputs = []
         
         if vote_type == "選択肢から選ぶ":
-            # --- 選択肢入力モード ---
             st.caption("参加者は用意された選択肢の中から1つを選びます。")
             for i in range(st.session_state.num_options):
                 val = st.text_input(f"選択肢 {i+1}", key=f"option_{i}", placeholder=f"選択肢 {i+1} を入力")
@@ -112,7 +113,6 @@ else:
             with btn_col2:
                 st.button("－ 1行削除", on_click=remove_option, disabled=(st.session_state.num_options <= 2))
         else:
-            # --- 自由記述モード ---
             st.info("💡 参加者は自由に文章を入力して回答できるようになります。")
 
         st.markdown("---")
@@ -120,16 +120,22 @@ else:
         # --- 作成ボタン ---
         if st.button("この内容で議題を作成する", type="primary", use_container_width=True):
             
-            # 保存データの準備
             final_options_str = ""
             is_valid = True
 
-            # 入力チェック
+            # 1. タイトルチェック
             if not title:
                 st.error("⚠️ タイトルを入力してください！")
                 is_valid = False
             
-            # 形式ごとのデータ作成
+            # 2. 日付チェック（過去の日付禁止）
+            # 現在時刻を取得
+            now = datetime.datetime.now()
+            if deadline_dt <= now:
+                st.error("⚠️ 締め切り時間が過去になっています。現在より未来の日時を設定してください。")
+                is_valid = False
+
+            # 3. 選択肢チェック
             if vote_type == "選択肢から選ぶ":
                 valid_opts = [opt.strip() for opt in options_inputs if opt.strip()]
                 if len(valid_opts) < 2:
@@ -138,23 +144,24 @@ else:
                 else:
                     final_options_str = "/".join(valid_opts)
             else:
-                # 自由記述の合言葉
                 final_options_str = "FREE_INPUT"
 
+            # 保存処理
             if is_valid:
                 try:
                     formatted_deadline = deadline_dt.strftime("%Y-%m-%d %H:%M")
                     
-                    # ▼▼▼ 重要：ログイン中のメールアドレスを取得（権限管理用） ▼▼▼
+                    # ログイン中のメールアドレスを取得（権限管理用）
                     current_email = st.session_state.logged_in_user
                     
-                    # db_handlerにデータを渡す（引数5つ）
+                    # db_handlerにデータを渡す
                     db_handler.add_topic_to_sheet(title, author, final_options_str, formatted_deadline, current_email)
                     
                     st.session_state.creation_completed = True
                     st.rerun() 
                 except Exception as e:
                     st.error(f"保存に失敗しました...: {e}")
+
 
 
 
