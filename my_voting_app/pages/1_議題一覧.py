@@ -5,11 +5,13 @@ import datetime
 import time
 import sys
 import os
-from background import set_background  #  # 背景画像の設定ファイルをインポート
+from background import set_background
+
 # ---------------------------------------------------------
 # db_handler.py を読み込めるようにパスを通す
 # ---------------------------------------------------------
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+# pagesフォルダの一つ上(親フォルダ)を見る設定
+sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/..'))
 import db_handler
 
 # ---------------------------------------------------------
@@ -30,14 +32,16 @@ st.set_page_config(
 
 set_background("background.png")  # 背景画像の設定
 
-# ▼▼▼ 門番コード ▼▼▼
+# ---------------------------------------------------------
+# ▼▼▼ 門番コード（ログインチェック） ▼▼▼
+# ---------------------------------------------------------
 if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
     st.warning("⚠️ このページを見るにはログインが必要です。")
     st.page_link("Home.py", label="ログイン画面へ戻る", icon="🏠")
-    st.stop() # ★ここでプログラムを強制停止！これより下のコードは実行されません
-    
+    st.stop() # プログラム強制停止
+
 # ---------------------------------------------------------
-# 4. ヘッダー
+# 4. ヘッダー & フィルタ UI
 # ---------------------------------------------------------
 st.title(APP_HEADER)
 st.caption(APP_DESCRIPTION)
@@ -50,8 +54,9 @@ if "fg" not in st.session_state:
 # 右寄せでボタンを横並びに配置
 col1, col2, col3, col4 = st.columns([0.36, 0.36, 0.14, 0.14])
 with col1:
-    input_date = st.date_input("締め切り",min_value=datetime.date.today())
-   
+    # デフォルトはNone（絞り込みなし）にして、全件見れるようにしています
+    input_date = st.date_input("締め切りで絞り込み", value=None)
+
 with col3:
     st.write("")
     st.write("")
@@ -63,15 +68,14 @@ with col4:
     st.write("")
     if st.button("⬇️ 降順"):
         st.session_state.fg = 0
-    
 
 # ---------------------------------------------------------
 # 5. スプレッドシートから議題を取得
 # ---------------------------------------------------------
-#topics_df = db_handler.get_topics_from_sheet()
-@st.cache_data(ttl=30)  #  30秒間キャッシュ
+@st.cache_data(ttl=30)  # 30秒間キャッシュ
 def load_topics():
     return db_handler.get_topics_from_sheet()
+
 topics_df = load_topics()
 
 if topics_df.empty:
@@ -81,22 +85,23 @@ if topics_df.empty:
 # ---------------------------------------------------------
 # 6. 投票データも取得
 # ---------------------------------------------------------
-#votes_df = db_handler.get_votes_from_sheet()
 @st.cache_data(ttl=30)
 def load_votes():
     return db_handler.get_votes_from_sheet()
+
 votes_df = load_votes()
 
-
-
 # ---------------------------------------------------------
-# 7. 日付と時刻を含む datetime に変換
+# 7. データ加工とフィルタリング
 # ---------------------------------------------------------
-# 現在日時
+# 現在日時（日本時間）
 now = datetime.datetime.now()
+
+# deadlineを日付型に変換
 topics_df["deadline"] = pd.to_datetime(topics_df["deadline"], errors="coerce", format="%Y-%m-%d %H:%M")
 
-# 締切があるものだけ残す（締切済み非表示）
+# 締切があるものだけ残す（自動終了フィルタ）
+# ※ 期限切れのものは表示されなくなります
 topics_df = topics_df[topics_df["deadline"].isna() | (topics_df["deadline"] >= now)]
 
 # ソート処理
@@ -110,22 +115,22 @@ if input_date:
     filtered_df = topics_df[
         topics_df["deadline"].dt.date == input_date
     ]
-
-    # 該当データがあるか判定
     if filtered_df.empty:
         st.warning("⚠️ 指定した締切日の議題は見つかりませんでした。")
-        st.stop()   # これ以降の表示処理を止める
+        st.stop()
     else:
         topics_df = filtered_df
+
 # ---------------------------------------------------------
 # 8. 議題ループ表示
 # ---------------------------------------------------------
-    
 for index, topic in topics_df.iterrows():
     title = topic["title"]
     author = topic.get("author", "不明")
-    options = topic["options"].split("/")
+    options_raw = topic["options"]
     deadline = topic.get("deadline", pd.NaT)
+    status = topic.get("status", "active")       # ステータス取得
+    owner_email = topic.get("owner_email", "")   # 作成者のメアド取得
 
     # deadline文字列化
     if pd.notna(deadline):
@@ -133,38 +138,84 @@ for index, topic in topics_df.iterrows():
     else:
         deadline_str = "未設定"
 
+    # ▼▼▼ 終了判定（手動 or 自動） ▼▼▼
+    is_closed = False
+    if status == 'closed':
+        is_closed = True
+
     with st.container(border=True):
-        st.subheader(title)
+        # タイトル（終了していたらアイコン変更）
+        if is_closed:
+            st.subheader(f"🔒 {title} (終了)")
+        else:
+            st.subheader(title)
+            
         st.caption(f"作成者：{author}｜締め切り：{deadline_str}")
 
-        col1, col2 = st.columns([1, 2])
+        # ▼▼▼ 作成者用：終了ボタン ▼▼▼
+        current_user = st.session_state.logged_in_user
+        
+        # 「自分が作成者」かつ「まだ終わっていない」ならボタンを表示
+        # ※ owner_emailが空文字の場合はボタンを出さない安全設計
+        if owner_email and current_user == owner_email and not is_closed:
+             with st.popover("⚠️ 投票を締め切る"):
+                st.write("本当に終了しますか？")
+                if st.button("はい、終了します", key=f"close_{index}", type="primary"):
+                    db_handler.close_topic_status(title)
+                    load_topics.clear() # ★重要：キャッシュを消して即反映
+                    st.success("終了しました！")
+                    st.rerun()
 
-        # 投票UI
+        st.markdown("---")
+
+        col1, col2 = st.columns([1, 1])
+
+        # 左カラム：投票UI
         with col1:
-            selected_option = st.radio(
-                "投票してください",
-                options,
-                key=f"radio_{index}"
-            )
-            if st.button("👍 投票する", key=f"vote_{index}"):
-                db_handler.add_vote_to_sheet(title, selected_option)
-                #  キャッシュクリア（ここ超重要）
-                load_votes.clear()
-                st.success("投票しました！")
-                st.rerun()
-               
+            if is_closed:
+                # 終了理由の表示
+                if status == 'closed':
+                    st.warning("⛔ この投票は受け付けを終了しました。")
+                else:
+                    st.warning("⏰ 締め切り時間を過ぎました。")
+            else:
+                # 自由記述か選択式か
+                submit_value = None
+                
+                if options_raw == "FREE_INPUT":
+                    st.markdown("**回答を入力してください**")
+                    submit_value = st.text_area("あなたの意見", key=f"text_{index}")
+                else:
+                    st.markdown("**選択肢を選んでください**")
+                    # 安全策：万が一 FREE_INPUT 以外の文字列がおかしくてもエラーにしない
+                    try:
+                        options_list = str(options_raw).split("/")
+                        submit_value = st.radio("選択肢", options_list, key=f"radio_{index}", label_visibility="collapsed")
+                    except:
+                        st.error("選択肢データの読み込みエラー")
 
-        # 投票数集計表示
+                # 投票ボタン
+                if st.button("👍 投票する", key=f"vote_{index}", type="primary"):
+                    if not submit_value:
+                        st.error("回答を入力してください")
+                    else:
+                        db_handler.add_vote_to_sheet(title, submit_value)
+                        load_votes.clear() # キャッシュクリア
+                        st.success("投票しました！")
+                        st.rerun()
+
+        # 右カラム：投票数集計表示
         with col2:
             st.write("### 📊 現在の投票数")
             topic_votes = votes_df[votes_df["topic_title"] == title] if not votes_df.empty else pd.DataFrame()
+            
             if topic_votes.empty:
-                for opt in options:
-                    st.write(f"{opt}：0 票")
+                st.write("まだ投票はありません")
             else:
                 counts = topic_votes["option"].value_counts()
-                for opt in options:
-                    st.write(f"{opt}：{counts.get(opt, 0)} 票")
+                st.bar_chart(counts)
+                with st.expander("詳細を見る"):
+                    st.dataframe(counts)
 
 
 
