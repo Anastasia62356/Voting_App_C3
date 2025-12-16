@@ -83,7 +83,7 @@ def get_topics_from_sheet():
 # ---------------------------------------------------------
 # 3. 投票を保存する
 # ---------------------------------------------------------
-def add_vote_to_sheet(topic_title, option):
+def add_vote_to_sheet(topic_title, option, user_email):
     sheet = connect_to_sheet()
     if sheet is None: return
     
@@ -92,7 +92,7 @@ def add_vote_to_sheet(topic_title, option):
         t_delta = datetime.timedelta(hours=9)
         JST = datetime.timezone(t_delta, 'JST')
         voted_at = datetime.datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
-        new_row = [topic_title, option, voted_at]
+        new_row = [topic_title, option, voted_at, user_email]
         worksheet.append_row(new_row)
     except Exception as e:
         st.error(f"投票書き込みエラー: {e}")
@@ -127,3 +127,4 @@ def close_topic_status(topic_title):
         
     except Exception as e:
         st.error(f"ステータス更新エラー: {e}")
+
