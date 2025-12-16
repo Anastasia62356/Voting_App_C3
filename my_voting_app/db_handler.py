@@ -112,6 +112,29 @@ def get_votes_from_sheet():
         st.error(f"投票読み込みエラー: {e}")
         return pd.DataFrame()
 
+
+# ---------------------------------------------------------
+# 4. 指定された議題を削除（論理削除）する
+# ---------------------------------------------------------
+def delete_topic(title: str, user_email: str):
+    
+    topics_df = get_topics_from_sheet()
+    votes_df = get_votes_from_sheet()
+
+    # ユーザー本人が作成した議題のみ削除
+    topics_df.loc[
+        (topics_df["title"] == title) & (topics_df["owner_email"] == user_email),
+        "status"
+    ] = "deleted"  # 論理削除
+
+    # votes データも削除
+    votes_df = votes_df[votes_df["topic_title"] != title]
+
+    # スプレッドシートを更新
+    update_topics_sheet(topics_df)
+    update_votes_sheet(votes_df)
+
+
 # ---------------------------------------------------------
 # 5. ステータスを終了にする
 # ---------------------------------------------------------
@@ -127,4 +150,5 @@ def close_topic_status(topic_title):
         
     except Exception as e:
         st.error(f"ステータス更新エラー: {e}")
+
 
